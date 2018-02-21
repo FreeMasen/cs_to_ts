@@ -1,120 +1,41 @@
 use std::path::{PathBuf};
-use std::fs::{read_dir, File};
-use std::io::{BufReader, Read, BufRead};
+use std::fs::{read_dir, File, OpenOptions};
+use std::io::{BufReader, BufRead, Write};
+
+pub mod parser;
+mod c_sharp;
 
 fn main() {
     let folder = PathBuf::from("input");
     let dir = read_dir(folder).expect("Unable to open input folder");
+    let mut strings: Vec<String> = vec!();
     for file in dir {
         match file {
             Ok(f) => {
-                parse_file(f.path());
+                strings.push(parse_file(f.path()));
             },
             Err(e) => {
-                println!("Unalbe to read file path");
+                println!("Unable to read file path {:?}", e);
             }
         }
     }
+    let mut f = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .open("index.d.ts")
+                    .expect("Cannot open output file");
+    for string in strings {
+       let _ = f.write_all(string.as_bytes());
+    }
 }
 
-fn parse_file(file_name: PathBuf) {
+fn parse_file(file_name: PathBuf) -> String {
     let f = File::open(file_name).expect("Unable to open file");
     let reader = BufReader::new(f);
-    for line in reader.lines() {
-        let _ = check_line(line.expect("Unable to read line"));
-    }
+    convert_to_string(reader, c_sharp::CSharpParser::default())
 }
 
-// fn check_for_class_line(line: String) -> Option<String> {
-//     match line.find("class") {
-//             Some(i) => {
-//                 Some(String::from(line.split_at(i + 6).1)) //class` ` = 6 chars
-//             },
-//             None => {
-//                 println!("did not find class keyword");
-//                 None
-//             }
-//         }
-// }
-
-fn check_line(line: String) {
-    match line.find("public") {
-        Some(i) => {
-            println!("public!\n\t{:?}", &line);
-            check_public_line(String::from(line.split_at(i + 7).1));
-        },
-        None => println!("not public")
-    }
+fn convert_to_string<T>(reader: BufReader<File>, p: T) -> String
+where T: parser::Parser {
+    p.parse(reader)
 }
-
-fn check_public_line(line: String) {
-    if line.ends_with(")") {return;}
-    let mut propBuf = line.split_whitespace();
-    let data_type = propBuf.next().expect("unable to unwrap data type");
-    let mut name = propBuf.next().expect("unable to unwrap name");
-    let optional = if data_type.ends_with("?") {
-        name = name.trim_matches('?');
-        true
-    } else {
-        false
-    };
-    let prop = Prop {
-        name: String::from(name),
-        data_type: DataType::from(data_type),
-        optional
-    };
-    println!("prop: {:?}", prop);
-}
-
-#[derive(Debug)]
-struct Prop {
-    name: String,
-    data_type: DataType,
-    optional: bool,
-}
-
-#[derive(Debug)]
-enum DataType {
-    Class,
-    Number,
-    String,
-    Object,
-    Date,
-    Function,
-}
-
-impl DataType {
-    fn from(name: &str) -> DataType {
-        match name {
-            "class" => DataType::Class,
-            "string" => DataType::String,
-            "decimal" => DataType::Number,
-            "double" => DataType::Number,
-            "single" => DataType::Number,
-            "float" => DataType::Number,
-            "int" => DataType::Number,
-            "DateTime" => DataType::Date,
-            "()" => DataType::Function,
-            _ => DataType::Object
-        }
-    }
-
-    fn to_string(&self) -> String {
-        match self {
-            &DataType::Class => String::from("class"),
-            &DataType::String => String::from("string"),
-            &DataType::Number => String::from("number"),
-            &DataType::Date => String::from("Date"),
-            &DataType::Function => String::from("function"),
-            _ => String::from("any"),
-        }
-    }
-}
-
-// enum Prop {
-//     Class(String),
-//     Number(String, bool),
-//     String(String),
-//     Object(String, String),
-//     Date(String),
-// }
