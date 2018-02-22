@@ -3,7 +3,7 @@ use std::fs::File;
 use super::parser;
 
 pub struct CSharpConfig {
-    use_concrete: bool,
+    pub use_concrete: bool,
     
 }
 
@@ -14,9 +14,8 @@ impl CSharpConfig {
         }
     }
 }
-
 pub struct CSharpParser {
-    config: CSharpConfig,
+    pub config: CSharpConfig,
 }
 
 impl parser::Parser for CSharpParser {
